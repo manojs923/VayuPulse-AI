@@ -202,7 +202,20 @@ Open **`http://localhost:5173`** in your browser. The Express gateway operates c
 
 ## 🌐 9. Production Deployment Guidelines
 
-### Backend Gateway (Node.js / Cloud Run / Container)
+### Option A: 1-Click Netlify Deployment (Frontend + Edge CDN)
+VayuPulse AI is pre-configured for Netlify with [`netlify.toml`](netlify.toml) and [`public/_redirects`](public/_redirects):
+
+1. Log in to [Netlify](https://app.netlify.com/) and click **"Add new site"** $\rightarrow$ **"Import an existing project"**.
+2. Connect your GitHub account and select **`VayuPulse-AI`**.
+3. Netlify will auto-detect settings from `netlify.toml`:
+   - **Build command**: `npm run build`
+   - **Publish directory**: `dist`
+4. Click **"Deploy VayuPulse-AI"**.
+5. Your live application will be instantly accessible at `https://<your-site-name>.netlify.app`.
+
+*All deterministic engines (EPA sub-index, 24h ML smog forecaster, Corsi-Rosenthal IAQ sizing, Dijkstra lowest-dose transit router, 8-language i18n, and Clean-Air Copilot) operate client-side in the browser.*
+
+### Option B: Zero-Trust Backend Gateway (Node.js / Cloud Run / Container)
 Deploy `server/server.ts` using Node.js or a container runtime:
 ```bash
 # Build the TypeScript frontend bundle
@@ -227,5 +240,27 @@ TELEMETRY_LON=77.2090
 
 ---
 
-## 📄 10. License
+## 📐 10. Assumptions & Boundary Conditions
+
+To maintain physical fidelity and responsible clinical boundaries, VayuPulse AI operates under the following explicit assumptions:
+
+1. **Atmospheric Inversion Modeling**:
+   - Assumes a boundary-layer inversion proxy calculated from ground surface temperature versus upper pressure-level temperature ($\Delta T = T_{\text{upper}} - T_{\text{ground}}$). Ground wind speeds $< 6\text{ km/h}$ indicate surface stagnation. It assumes representative urban elevation and does not resolve complex multi-tiered elevated inversions.
+2. **Indoor Air Quality (IAQ) Mass-Balance Decay**:
+   - Operates on a well-mixed, single-compartment room model where particle clearance follows first-order exponential decay: $t = \left[\frac{-\ln(1 - \eta) \times V}{\text{CADR}}\right] \times 60\text{ min}$.
+   - Assumes windows and doors remain sealed during inversion episodes with negligible uncontrolled infiltration.
+3. **Inhaled Dose Transit Calculations**:
+   - Uses standard physiological minute ventilation rates: $0.45\text{ m}^3/\text{h}$ for seated transit (metro, EV, bus) and $2.3\text{ m}^3/\text{h}$ for vigorous outdoor exertion (cycling, walking).
+   - Modal filtration efficiencies are parameterized at: EV/HEPA cabin (85%), Underground Metro (75%), Electric Bus (40%), Diesel Bus (20%), Ambient Walking/Cycling (0%).
+4. **Clinical Safety Invariants**:
+   - **Infants (<2 years)**: Respirator masks are strictly contraindicated due to high airway resistance and suffocation hazards; protection is achieved solely through nursery HEPA filtration.
+   - **Asthmatic Children (5–12 years)**: Masks must be pediatric-sized (e.g. KF94) under adult supervision, never generic adult N95s; outdoor recess is restricted during morning inversion peaks.
+5. **Deterministic Separation of Concerns (LLM Non-Computation)**:
+   - Language models must never compute mathematical formulas, AQI indices, or clearance curves. All quantitative outputs are computed by pure deterministic TypeScript engines, with LLMs limited to synthesis, tool selection, and empathetic communication.
+6. **Data Honesty & Fallback**:
+   - Live telemetry via Open-Meteo and CAMS is marked with observation timestamps and source labels. When offline or unconfigured, the system falls back to a deterministic physics simulation clearly flagged with `isSimulated: true` and a visible explanatory banner.
+
+---
+
+## 📄 11. License
 This project is open-source and licensed under the [MIT License](LICENSE).
