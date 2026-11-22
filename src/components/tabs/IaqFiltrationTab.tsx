@@ -4,6 +4,7 @@ import {
   PURIFIER_PRESETS,
 } from '../../lib/aqiCompute';
 import { MedicalNotice } from '../common/MedicalNotice';
+import { useI18n } from '../../lib/i18n/I18nContext';
 import {
   Wind,
   CheckCircle2,
@@ -13,6 +14,7 @@ import {
 } from 'lucide-react';
 
 export const IaqFiltrationTab: React.FC = () => {
+  const { t } = useI18n();
   const [lengthM, setLengthM] = useState<number>(5.0);
   const [widthM, setWidthM] = useState<number>(4.0);
   const [heightM, setHeightM] = useState<number>(2.5);
@@ -34,7 +36,8 @@ export const IaqFiltrationTab: React.FC = () => {
   }, [lengthM, widthM, heightM, selectedTargetEta]);
 
   const roomVolume = Math.round(lengthM * widthM * heightM * 10) / 10;
-  const requiredCADR4ACH = Math.round(roomVolume * 4.0);
+  const recommendedCADR5ACH = Math.round(roomVolume * 5.0);
+  const baselineCADR4ACH = Math.round(roomVolume * 4.0);
 
   return (
     <div className="space-y-6">
@@ -45,17 +48,17 @@ export const IaqFiltrationTab: React.FC = () => {
         <div>
           <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
             <Wind className="w-5 h-5 text-cyan-400" aria-hidden="true" />
-            Indoor Air Quality (IAQ) & Low-Cost DIY Filtration Lab
+            {t.iaqTab.title}
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Deterministic single-compartment CADR mass-balance decay and 4-ACH target sizing.
+            {t.iaqTab.subtitle}
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
           <div>
             <div className="flex justify-between text-xs font-mono text-slate-300 mb-1">
-              <span>Length: {lengthM} m</span>
+              <span>{t.iaqTab.roomLength}: {lengthM} m</span>
             </div>
             <input
               type="range"
@@ -70,7 +73,7 @@ export const IaqFiltrationTab: React.FC = () => {
 
           <div>
             <div className="flex justify-between text-xs font-mono text-slate-300 mb-1">
-              <span>Width: {widthM} m</span>
+              <span>{t.iaqTab.roomWidth}: {widthM} m</span>
             </div>
             <input
               type="range"
@@ -85,7 +88,7 @@ export const IaqFiltrationTab: React.FC = () => {
 
           <div>
             <div className="flex justify-between text-xs font-mono text-slate-300 mb-1">
-              <span>Ceiling Height: {heightM} m</span>
+              <span>{t.iaqTab.ceilingHeight}: {heightM} m</span>
             </div>
             <input
               type="range"
@@ -99,10 +102,11 @@ export const IaqFiltrationTab: React.FC = () => {
           </div>
 
           <div>
-            <div className="flex justify-between text-xs font-mono text-slate-300 mb-1">
-              <span>Reduction Target: {(selectedTargetEta * 100).toFixed(0)}%</span>
-            </div>
+            <label htmlFor="iaq-reduction-target" className="flex justify-between text-xs font-mono text-slate-300 mb-1">
+              <span>{t.iaqTab.targetReduction}: {(selectedTargetEta * 100).toFixed(0)}%</span>
+            </label>
             <select
+              id="iaq-reduction-target"
               value={selectedTargetEta}
               onChange={(e) => setSelectedTargetEta(parseFloat(e.target.value))}
               className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs font-mono text-slate-200 focus:outline-none focus:border-cyan-500"
@@ -122,16 +126,17 @@ export const IaqFiltrationTab: React.FC = () => {
             <span className="text-base font-bold text-slate-200">{roomVolume} m³</span>
           </div>
           <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
-            <span className="text-slate-400 text-[10px] block">Required for 4-ACH</span>
-            <span className="text-base font-bold text-cyan-400">{requiredCADR4ACH} m³/h</span>
+            <span className="text-slate-400 text-[10px] block">Recommended (5 ACH)</span>
+            <span className="text-base font-bold text-cyan-400">{recommendedCADR5ACH} m³/h</span>
           </div>
           <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
-            <span className="text-slate-400 text-[10px] block">Target Decay Ratio</span>
-            <span className="text-base font-bold text-slate-200">{(selectedTargetEta * 100).toFixed(0)}% drop</span>
+            <span className="text-slate-400 text-[10px] block">Minimum (4 ACH)</span>
+            <span className="text-base font-bold text-slate-300">{baselineCADR4ACH} m³/h</span>
           </div>
           <div className="p-3 rounded-xl bg-slate-950/70 border border-slate-800">
-            <span className="text-slate-400 text-[10px] block">ASHRAE Standard</span>
-            <span className="text-base font-bold text-emerald-400">≥ 4.0 ACH Recommended</span>
+            <span className="text-slate-400 text-[10px] block">Target Standard</span>
+            <span className="text-xs font-bold text-emerald-400 block">common guideline: 4–5+ ACH</span>
+            <span className="text-[10px] text-cyan-300 block font-semibold mt-0.5">5 ACH Recommended</span>
           </div>
         </div>
       </div>
@@ -175,7 +180,11 @@ export const IaqFiltrationTab: React.FC = () => {
 
           <div className="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-800/50 text-[11px] text-emerald-200 flex items-center gap-1.5">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            {crClearance.meets4ACHStandard ? 'Exceeds 4-ACH pediatric standard.' : 'Add second unit for 4-ACH compliance.'}
+            {crClearance.ach >= 5
+              ? 'Exceeds recommended 5 ACH (common guideline: 4–5+ ACH).'
+              : crClearance.ach >= 4
+              ? 'Meets 4 ACH (common guideline: 4–5+ ACH; 5 ACH recommended).'
+              : 'Add second unit for common guideline: 4–5+ ACH.'}
           </div>
         </div>
 
@@ -216,7 +225,11 @@ export const IaqFiltrationTab: React.FC = () => {
 
           <div className="p-2.5 rounded-lg bg-slate-950 border border-slate-800 text-[11px] text-slate-400 flex items-center gap-1.5">
             <ShieldCheck className="w-4 h-4 text-slate-400 shrink-0" />
-            {hepaClearance.meets4ACHStandard ? 'Compliant with 4-ACH standard.' : 'Falls below 4-ACH for this volume.'}
+            {hepaClearance.ach >= 5
+              ? 'Meets recommended 5 ACH (common guideline: 4–5+ ACH).'
+              : hepaClearance.ach >= 4
+              ? 'Meets 4 ACH (common guideline: 4–5+ ACH; 5 ACH recommended).'
+              : 'Falls below common guideline: 4–5+ ACH for this volume.'}
           </div>
         </div>
 
@@ -257,7 +270,9 @@ export const IaqFiltrationTab: React.FC = () => {
 
           <div className="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-800/50 text-[11px] text-emerald-200 flex items-center gap-1.5">
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-            Rapid high-volume particle scrub.
+            {highCapClearance.ach >= 5
+              ? 'Exceeds recommended 5 ACH (common guideline: 4–5+ ACH).'
+              : 'Meets common guideline: 4–5+ ACH.'}
           </div>
         </div>
       </div>

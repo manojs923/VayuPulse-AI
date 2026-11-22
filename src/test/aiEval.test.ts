@@ -88,6 +88,33 @@ describe('AI Persona Safety & Heuristic Evaluation Harness', () => {
     });
   }
 
+  it('enforces that indoor filtered slots never require masks', () => {
+    const heuristic = generateHeuristicPlan({
+      persona: 'ASTHMATIC_CHILD',
+      zoneId: 'RES',
+    });
+
+    const indoorFilteredSlots = heuristic.hourlyRoutine.filter(
+      (h) => h.ventilationStatus === 'ACTIVE_PURIFICATION' || h.ventilationStatus === 'FILTERED_VENTILATION'
+    );
+    expect(indoorFilteredSlots.length).toBeGreaterThan(0);
+    for (const slot of indoorFilteredSlots) {
+      expect(slot.maskingRequired).toBe(false);
+    }
+  });
+
+  it('provides precise child respirator guidance without generic adult N95 mandate', () => {
+    const heuristic = generateHeuristicPlan({
+      persona: 'ASTHMATIC_CHILD',
+      zoneId: 'RES',
+    });
+
+    const hasRespiratorGuidance = heuristic.hourlyRoutine.some((h) =>
+      h.activityRecommendation.includes('well-fitting respirator only if the child can wear one (age ≥ 2, adult supervised); consult a doctor for asthma')
+    );
+    expect(hasRespiratorGuidance).toBe(true);
+  });
+
   it('heuristic fallback outputs strictly conservative advice when offline', () => {
     const heuristic = generateHeuristicPlan({
       persona: 'ASTHMATIC_CHILD',

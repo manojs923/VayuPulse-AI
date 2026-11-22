@@ -18,6 +18,16 @@ describe('Express 5 Gateway Security & Endpoint Tests', () => {
     expect(res.headers['x-frame-options']).toBe('DENY');
   });
 
+  it('serves telemetry for all sectors via GET /api/ai/telemetry', async () => {
+    const res = await request(app).get('/api/ai/telemetry');
+    expect(res.status).toBe(200);
+    expect(res.body.source).toBeDefined();
+    expect(res.body.sectors).toBeDefined();
+    expect(res.body.sectors.CBD).toBeDefined();
+    expect(res.body.sectors.CBD.zoneId).toBe('CBD');
+    expect(res.body.sectors.CBD.pm25).toBeGreaterThan(0);
+  });
+
   it('rejects payloads exceeding the 15 KB body cap with 413 Payload Too Large', async () => {
     // Generate oversized JSON payload (> 16 KB)
     const largePadding = 'a'.repeat(16 * 1024);

@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ActiveTabId } from '../../types';
+import { I18nProvider, useI18n } from '../../lib/i18n/I18nContext';
+import { LanguageSelector } from '../common/LanguageSelector';
 import { SimulatedBanner } from '../common/SimulatedBanner';
 import { TelemetryForecastTab } from '../tabs/TelemetryForecastTab';
 import { RoutineOptimizerTab } from '../tabs/RoutineOptimizerTab';
@@ -18,20 +20,6 @@ import {
   HelpCircle,
 } from 'lucide-react';
 
-interface TabDefinition {
-  id: ActiveTabId;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
-
-const TABS: readonly TabDefinition[] = [
-  { id: 'telemetry', label: 'Telemetry & ML Forecast', icon: CloudFog },
-  { id: 'routine', label: 'Agentic Routine Optimizer', icon: Bot },
-  { id: 'corridor', label: 'Clean-Corridor Transit', icon: Compass },
-  { id: 'iaq', label: 'IAQ & Filtration Lab', icon: Wind },
-  { id: 'community', label: 'Community Resilience', icon: Users },
-];
-
 /**
  * Safe LocalStorage parser adhering to strict schema guards.
  */
@@ -46,12 +34,30 @@ export function safeParseLocalStorage<T>(key: string, fallback: T): T {
   }
 }
 
-export const AppShell: React.FC = () => {
+const AppShellContent: React.FC = () => {
+  const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<ActiveTabId>(() => {
     return safeParseLocalStorage<ActiveTabId>('vayupulse_active_tab', 'telemetry');
   });
   const [isCopilotOpen, setIsCopilotOpen] = useState<boolean>(false);
   const [isModelCardOpen, setIsModelCardOpen] = useState<boolean>(false);
+  const [telemetryStatus, setTelemetryStatus] = useState<{
+    isSimulated: boolean;
+    sourceLabel: string;
+    asOf?: string;
+    fallbackReason?: string;
+  }>({
+    isSimulated: true,
+    sourceLabel: 'Physics-Based Simulated Environmental Telemetry',
+  });
+
+  const tabs = [
+    { id: 'telemetry' as const, label: t.nav.tabs.telemetry, icon: CloudFog },
+    { id: 'routine' as const, label: t.nav.tabs.routine, icon: Bot },
+    { id: 'corridor' as const, label: t.nav.tabs.corridor, icon: Compass },
+    { id: 'iaq' as const, label: t.nav.tabs.iaq, icon: Wind },
+    { id: 'community' as const, label: t.nav.tabs.community, icon: Users },
+  ];
 
   useEffect(() => {
     try {
@@ -61,10 +67,45 @@ export const AppShell: React.FC = () => {
     }
   }, [activeTab]);
 
+  useEffect(() => {
+    fetch('/api/ai/telemetry')
+      .then((res) => {
+        if (!res.ok) throw new Error('Failed to fetch telemetry status');
+        return res.json();
+      })
+      .then(
+        (data: {
+          source: string;
+          sectors: Record<
+            string,
+            { isSimulated: boolean; sourceLabel: string; asOf?: string; fallbackReason?: string }
+          >;
+        }) => {
+          const first = Object.values(data.sectors)[0];
+          if (first) {
+            setTelemetryStatus({
+              isSimulated: first.isSimulated,
+              sourceLabel: first.sourceLabel || data.source,
+              asOf: first.asOf,
+              fallbackReason: first.fallbackReason,
+            });
+          }
+        }
+      )
+      .catch(() => {
+        // Safe offline simulated default
+      });
+  }, []);
+
   return (
     <div className="min-h-screen bg-[#07090e] text-slate-100 flex flex-col font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
-      {/* Persistent Simulated Data Banner */}
-      <SimulatedBanner isSimulated={true} />
+      {/* Persistent Simulated/Live Data Banner */}
+      <SimulatedBanner
+        isSimulated={telemetryStatus.isSimulated}
+        sourceLabel={telemetryStatus.sourceLabel}
+        asOf={telemetryStatus.asOf}
+        fallbackReason={telemetryStatus.fallbackReason}
+      />
 
       {/* Primary Atmospheric Header */}
       <header className="sticky top-0 z-40 atmospheric-glass border-b border-slate-800/80">
@@ -78,27 +119,29 @@ export const AppShell: React.FC = () => {
             <div>
               <div className="flex items-center gap-2">
                 <h1 className="text-base font-extrabold tracking-tight bg-gradient-to-r from-cyan-300 via-teal-200 to-emerald-400 bg-clip-text text-transparent">
-                  VayuPulse AI
+                  {t.header.title}
                 </h1>
                 <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-800 text-cyan-300 border border-slate-700 font-semibold">
-                  v1.0
+                  {t.header.version}
                 </span>
               </div>
               <p className="text-[11px] text-slate-400 hidden sm:block">
-                Atmospheric Intelligence, ML Smog Forecasting & Clean-Air Agent
+                {t.header.subtitle}
               </p>
             </div>
           </div>
 
           {/* Quick Action Buttons */}
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            <LanguageSelector />
+
             <button
               type="button"
               onClick={() => setIsModelCardOpen(true)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-800 hover:border-slate-700 text-xs font-mono text-slate-300 transition-colors focus:ring-2 focus:ring-cyan-500/50"
             >
               <HelpCircle className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="hidden md:inline">Model Card</span>
+              <span className="hidden md:inline">{t.nav.modelCard}</span>
             </button>
 
             <button
@@ -107,7 +150,7 @@ export const AppShell: React.FC = () => {
               className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 text-slate-950 font-bold text-xs flex items-center gap-1.5 transition-all shadow-md shadow-cyan-500/20 hover:opacity-90 focus:ring-2 focus:ring-cyan-500"
             >
               <Sparkles className="w-3.5 h-3.5" />
-              <span>Clean-Air Copilot</span>
+              <span>{t.nav.copilot}</span>
             </button>
           </div>
         </div>
@@ -119,7 +162,7 @@ export const AppShell: React.FC = () => {
             aria-label="VayuPulse Application Modules"
             className="flex space-x-1 overflow-x-auto py-1 scrollbar-none"
           >
-            {TABS.map((tab) => {
+            {tabs.map((tab) => {
               const Icon = tab.icon;
               const isSelected = activeTab === tab.id;
               return (
@@ -165,9 +208,12 @@ export const AppShell: React.FC = () => {
       {/* Footer */}
       <footer className="border-t border-slate-900 bg-slate-950 py-6 text-center text-xs text-slate-500 font-mono">
         <div className="max-w-7xl mx-auto px-4 space-y-1">
-          <p>VayuPulse AI • Physics-Grounded Environmental Intelligence</p>
+          <p>{t.footer.mission}</p>
           <p className="text-[11px] text-slate-600">
-            EPA NAAQS 2024 Breakpoints • WHO Air Quality Guidelines • Deterministic CADR Mass Balance
+            {t.footer.standards}
+          </p>
+          <p className="text-[10px] text-slate-600">
+            {t.footer.attribution}
           </p>
         </div>
       </footer>
@@ -178,5 +224,13 @@ export const AppShell: React.FC = () => {
       {/* In-App Model Card Modal */}
       <ModelCardModal isOpen={isModelCardOpen} onClose={() => setIsModelCardOpen(false)} />
     </div>
+  );
+};
+
+export const AppShell: React.FC = () => {
+  return (
+    <I18nProvider>
+      <AppShellContent />
+    </I18nProvider>
   );
 };

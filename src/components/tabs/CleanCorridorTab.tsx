@@ -9,6 +9,7 @@ import {
 } from '../../lib/routing';
 import { generate24HourMLForecast } from '../../lib/mlForecast';
 import { MedicalNotice } from '../common/MedicalNotice';
+import { useI18n } from '../../lib/i18n/I18nContext';
 import {
   Navigation,
   Compass,
@@ -19,6 +20,7 @@ import {
 } from 'lucide-react';
 
 export const CleanCorridorTab: React.FC = () => {
+  const { t } = useI18n();
   const [origin, setOrigin] = useState<SectorId>('RES');
   const [destination, setDestination] = useState<SectorId>('CBD');
   const [activeMode, setActiveMode] = useState<TransitMode>('METRO');
@@ -89,17 +91,17 @@ export const CleanCorridorTab: React.FC = () => {
         <div>
           <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
             <Navigation className="w-5 h-5 text-cyan-400" aria-hidden="true" />
-            Clean-Corridor Dijkstra Lowest-Exposure Transit Router
+            {t.corridorTab.title}
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Calculates cumulative inhaled particulate dose minimizing exposure across urban topologies and dynamic diurnal smog curves.
+            {t.corridorTab.subtitle}
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 pt-2">
           <div>
             <label htmlFor="origin-sector" className="text-xs font-mono text-slate-400 block mb-1">
-              Origin Sector:
+              {t.corridorTab.origin}:
             </label>
             <select
               id="origin-sector"
@@ -117,7 +119,7 @@ export const CleanCorridorTab: React.FC = () => {
 
           <div>
             <label htmlFor="destination-sector" className="text-xs font-mono text-slate-400 block mb-1">
-              Destination Sector:
+              {t.corridorTab.destination}:
             </label>
             <select
               id="destination-sector"
@@ -135,7 +137,7 @@ export const CleanCorridorTab: React.FC = () => {
 
           <div>
             <label htmlFor="departure-hour" className="text-xs font-mono text-slate-400 block mb-1">
-              Departure Clock Hour:
+              {t.corridorTab.departureTime}:
             </label>
             <select
               id="departure-hour"
@@ -209,7 +211,7 @@ export const CleanCorridorTab: React.FC = () => {
             Multi-Modal Inhaled Dose Exposure Comparison
           </h3>
           <span className="text-xs font-mono text-slate-400">
-            Path: {origin} → {destination}
+            Path: {URBAN_SECTORS[origin].name} ({origin}) → {URBAN_SECTORS[destination].name} ({destination})
           </span>
         </div>
 

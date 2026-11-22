@@ -39,7 +39,7 @@ describe('DOM Interactions, Modals, RTL & Persona Flows', () => {
     fireEvent.click(communityTab);
 
     // Initial language is English (LTR)
-    expect(screen.getByText(/English/i)).toBeDefined();
+    expect(screen.getByRole('button', { name: /English/i })).toBeDefined();
 
     // Switch to Arabic
     const arabicBtn = screen.getByRole('button', { name: /Arabic/i });

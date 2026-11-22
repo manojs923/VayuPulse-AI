@@ -395,9 +395,9 @@ export function dijkstraTimeDependent(
 
   // Check if forecast is flat across horizon
   const firstPredicted = forecast.hours[0]?.predictedPM25 ?? 50.0;
-  const isFlatForecast = forecast.hours.every(
-    (h) => Math.abs(h.predictedPM25 - firstPredicted) < 0.01
-  );
+  const isFlatForecast =
+    forecast.hours.length === 0 ||
+    forecast.hours.every((h) => Math.abs(h.predictedPM25 - firstPredicted) < 0.01);
 
   let bestOffset = 0;
   let minDose = Infinity;
@@ -437,19 +437,36 @@ export function dijkstraTimeDependent(
     });
   }
 
-  const doseReductionPercent =
-    leaveNowDose > 0
-      ? Math.round(((leaveNowDose - minDose) / leaveNowDose) * 1000) / 10
+  // Handle unreachable destination
+  if (minDose === Infinity || leaveNowDose === Infinity) {
+    return {
+      bestDepartureHourOffset: 0,
+      departureClockHour: currentHourOfDay,
+      bestDoseMicrograms: Infinity,
+      leaveNowDoseMicrograms: Infinity,
+      doseReductionPercent: 0,
+      isFlatForecast: true,
+      advice: 'Destination sector is currently unreachable via transit network.',
+      hourlyDoses,
+    };
+  }
+
+  const rawReduction =
+    leaveNowDose > 0 && minDose < leaveNowDose
+      ? ((leaveNowDose - minDose) / leaveNowDose) * 100
       : 0;
+  const doseReductionPercent = Math.round(rawReduction * 10) / 10;
 
   const bestTargetHour = (currentHourOfDay + bestOffset) % 24;
   const formattedBestTime = `${String(bestTargetHour).padStart(2, '0')}:00`;
   const formattedCurrentTime = `${String(currentHourOfDay).padStart(2, '0')}:00`;
 
-  const advice =
-    isFlatForecast || doseReductionPercent <= 1.0
-      ? `Forecast air quality remains steady over the next 12 hours. Leaving now at ${formattedCurrentTime} incurs approximately the same inhaled dose (~${leaveNowDose.toFixed(1)} µg).`
-      : `Leave at ${formattedBestTime} instead of ${formattedCurrentTime} to inhale ${doseReductionPercent}% less PM2.5 (reduces inhaled dose from ${leaveNowDose.toFixed(1)} µg to ${minDose.toFixed(1)} µg).`;
+  let advice: string;
+  if (isFlatForecast || doseReductionPercent <= 1.0 || bestOffset === 0) {
+    advice = `Forecast air quality remains steady or worsens later. Leaving now at ${formattedCurrentTime} is optimal (~${leaveNowDose.toFixed(1)} µg dose).`;
+  } else {
+    advice = `Leave at ${formattedBestTime} instead of ${formattedCurrentTime} to inhale ${doseReductionPercent}% less PM2.5 (reduces inhaled dose from ${leaveNowDose.toFixed(1)} µg to ${minDose.toFixed(1)} µg).`;
+  }
 
   return {
     bestDepartureHourOffset: bestOffset,

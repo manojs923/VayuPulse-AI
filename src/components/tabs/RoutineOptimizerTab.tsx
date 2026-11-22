@@ -4,6 +4,7 @@ import { UserPersona, AgentPlanResponse } from '../../types/orchestrator';
 import { generateClientHeuristicPlan } from '../../lib/clientHeuristic';
 import { SectorId } from '../../lib/routing';
 import { MedicalNotice } from '../common/MedicalNotice';
+import { useI18n } from '../../lib/i18n/I18nContext';
 import {
   ShieldAlert,
   Bot,
@@ -15,7 +16,22 @@ import {
   Search,
 } from 'lucide-react';
 
+const EXPOSURE_RISK_LABELS: Record<string, string> = {
+  LOW: 'Low Risk',
+  MODERATE: 'Moderate Risk',
+  HIGH: 'High Risk',
+  SEVERE: 'Severe Risk',
+};
+
+const VENTILATION_STATUS_LABELS: Record<string, string> = {
+  SEALED: 'Sealed Enclosure',
+  ACTIVE_PURIFICATION: 'Active Air Purification',
+  FILTERED_VENTILATION: 'Filtered Ventilation',
+  OPEN_VENTILATION: 'Open Cross-Ventilation',
+};
+
 export const RoutineOptimizerTab: React.FC = () => {
+  const { t } = useI18n();
   const [selectedPersona, setSelectedPersona] = useState<UserPersona>('ASTHMATIC_CHILD');
   const [selectedZone, setSelectedZone] = useState<SectorId>('RES');
   const [loading, setLoading] = useState<boolean>(false);
@@ -68,10 +84,10 @@ export const RoutineOptimizerTab: React.FC = () => {
         <div>
           <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
             <Bot className="w-5 h-5 text-cyan-400" aria-hidden="true" />
-            Agentic Daily Routine Optimizer (Planner → Safety Critic Loop)
+            {t.routineTab.title}
           </h2>
           <p className="text-xs text-slate-400 mt-1">
-            Deterministic physics & WHO/EPA protocols orchestrated by autonomous agent planning with safety critic verification.
+            {t.routineTab.subtitle}
           </p>
         </div>
 
@@ -131,12 +147,12 @@ export const RoutineOptimizerTab: React.FC = () => {
             {loading ? (
               <>
                 <Sparkles className="w-4 h-4 animate-spin" aria-hidden="true" />
-                Orchestrating Agent Loop...
+                {t.routineTab.generating}
               </>
             ) : (
               <>
                 <Sparkles className="w-4 h-4" aria-hidden="true" />
-                Synthesize Daily Protection Routine
+                {t.routineTab.generatePlan}
               </>
             )}
           </button>
@@ -205,18 +221,20 @@ export const RoutineOptimizerTab: React.FC = () => {
                               : 'bg-amber-950 text-amber-300 border-amber-800/60'
                           }`}
                         >
-                          Risk: {step.exposureRisk}
+                          Risk: {EXPOSURE_RISK_LABELS[step.exposureRisk] ?? step.exposureRisk}
                         </span>
-                        <span className="px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-800 capitalize">
-                          Ventilation: {step.ventilationStatus.toLowerCase().replace(/_/g, ' ')}
+                        <span className="px-2 py-0.5 rounded bg-slate-900 text-slate-300 border border-slate-800">
+                          Ventilation: {VENTILATION_STATUS_LABELS[step.ventilationStatus] ?? step.ventilationStatus}
                         </span>
                         {selectedPersona === 'NEWBORN_INFANT' ? (
                           <span className="px-2 py-0.5 rounded bg-amber-950/60 text-amber-300 border border-amber-800/60 font-semibold text-[10px]">
                             Masks Contraindicated (&lt;2y)
                           </span>
-                        ) : step.maskingRequired ? (
+                        ) : step.maskingRequired && step.ventilationStatus !== 'ACTIVE_PURIFICATION' && step.ventilationStatus !== 'FILTERED_VENTILATION' ? (
                           <span className="px-2 py-0.5 rounded bg-purple-950 text-purple-300 border border-purple-800/60 text-[10px]">
-                            {selectedPersona === 'ASTHMATIC_CHILD' ? 'Pediatric KF94 Required' : 'N95 / FFP2 Required'}
+                            {selectedPersona === 'ASTHMATIC_CHILD'
+                              ? 'well-fitting respirator only if the child can wear one (age ≥ 2, adult supervised); consult a doctor for asthma'
+                              : 'N95 / FFP2 Required'}
                           </span>
                         ) : null}
                       </div>

@@ -1,14 +1,20 @@
 /**
- * @file telemetrySource.ts
- * @description Pluggable telemetry source architecture.
- * Implements:
- * - TelemetrySource interface
- * - SimulatedSource (default, physics-based)
- * - OpenMeteoAirQualitySource (live feed adapter with automatic simulated fallback)
+ * @file src/lib/telemetrySource.ts
+ * @description Client-safe telemetry types + the simulated source.
+ *
+ * The live adapter (OpenMeteoSource) lives in server/telemetry/ because it calls the network and
+ * must never be bundled into the client. The browser reads telemetry from GET /api/ai/telemetry.
+ *
+ * Data-honesty rule: `isSimulated` is only false when the numbers really came from a live feed.
+ * When a live source fails, it falls back to SimulatedSource with `fallbackReason` set.
  */
 
-import { SectorId, URBAN_SECTORS } from './routing';
+import { URBAN_SECTORS, type SectorId } from './routing';
 import { calculatePM25SubIndex, evaluateInversionRisk } from './aqiCompute';
+
+export const SECTOR_IDS: readonly SectorId[] = ['CBD', 'IND', 'RES', 'PRK', 'TRN'];
+
+export type InversionSeverity = 'NONE' | 'MODERATE' | 'SEVERE' | 'CRITICAL';
 
 export interface SectorReading {
   zoneId: SectorId;
@@ -19,30 +25,55 @@ export interface SectorReading {
   groundTempC: number;
   upperTempC: number;
   windSpeedKmH: number;
-  inversionSeverity: 'NONE' | 'MODERATE' | 'SEVERE' | 'CRITICAL';
+  inversionSeverity: InversionSeverity;
   isSimulated: boolean;
   sourceLabel: string;
+  /** When this reading object was produced. */
   timestamp: string;
+  /** Live sources only: when the underlying observation / model step is valid. */
+  asOf?: string;
+  /** Live sources only: pressure level (hPa) used as the "upper" temperature for the inversion proxy. */
+  upperLevelHPa?: number;
+  /** Set when live data was unavailable (simulated fallback) or is stale (last good reading). */
+  fallbackReason?: string;
 }
 
 export interface TelemetrySource {
   readonly name: string;
+  /** Static hint only. Use each reading's `isSimulated` / `fallbackReason` as the truth. */
   readonly isSimulated: boolean;
   fetchSectorTelemetry(zoneId: SectorId): Promise<SectorReading>;
   fetchAllSectors(): Promise<Record<SectorId, SectorReading>>;
 }
 
 /**
- * Default Physics-Based Simulated Telemetry Source.
+ * Single source of truth for the simulated weather. (The old gateway used 8.0 / 11.5 / 3.5 while this
+ * file used 7.5 / 11.2 / 3.2: pick one set and use it everywhere.)
+ */
+export const DEFAULT_SIMULATED_WEATHER = {
+  groundTempC: 7.5,
+  upperTempC: 11.2,
+  windSpeedKmH: 3.2,
+} as const;
+
+/**
+ * Default physics-based simulated telemetry source.
+ * @param fallbackReason When provided, readings are labeled as a fallback for a failed live feed.
  */
 export class SimulatedSource implements TelemetrySource {
   public readonly name = 'Physics-Based Simulated Environmental Telemetry';
   public readonly isSimulated = true;
+  private readonly fallbackReason: string | undefined;
+
+  constructor(fallbackReason?: string) {
+    this.fallbackReason = fallbackReason;
+  }
 
   public async fetchSectorTelemetry(zoneId: SectorId): Promise<SectorReading> {
     const sector = URBAN_SECTORS[zoneId];
+    const { groundTempC, upperTempC, windSpeedKmH } = DEFAULT_SIMULATED_WEATHER;
     const aqiRes = calculatePM25SubIndex(sector.defaultPM25);
-    const invRes = evaluateInversionRisk(7.5, 11.2, 3.2);
+    const invRes = evaluateInversionRisk(groundTempC, upperTempC, windSpeedKmH);
 
     return {
       zoneId: sector.id,
@@ -50,74 +81,30 @@ export class SimulatedSource implements TelemetrySource {
       pm25: sector.defaultPM25,
       aqi: aqiRes.aqi,
       category: aqiRes.category,
-      groundTempC: 7.5,
-      upperTempC: 11.2,
-      windSpeedKmH: 3.2,
+      groundTempC,
+      upperTempC,
+      windSpeedKmH,
       inversionSeverity: invRes.severity,
       isSimulated: true,
-      sourceLabel: this.name,
+      sourceLabel:
+        this.fallbackReason !== undefined ? 'Simulated (live feed unavailable)' : this.name,
       timestamp: new Date().toISOString(),
+      ...(this.fallbackReason !== undefined ? { fallbackReason: this.fallbackReason } : {}),
     };
   }
 
   public async fetchAllSectors(): Promise<Record<SectorId, SectorReading>> {
-    const zones: SectorId[] = ['CBD', 'IND', 'RES', 'PRK', 'TRN'];
-    const result: Partial<Record<SectorId, SectorReading>> = {};
-    for (const z of zones) {
-      result[z] = await this.fetchSectorTelemetry(z);
-    }
-    return result as Record<SectorId, SectorReading>;
+    const entries = await Promise.all(
+      SECTOR_IDS.map(async (id) => [id, await this.fetchSectorTelemetry(id)] as const)
+    );
+    return Object.fromEntries(entries) as Record<SectorId, SectorReading>;
   }
 }
 
 /**
- * Open-Meteo Air Quality live feed adapter with automatic graceful fallback.
- */
-export class OpenMeteoAirQualitySource implements TelemetrySource {
-  public readonly name = 'Open-Meteo Air Quality & CAMS Reanalysis';
-  public readonly isSimulated = false;
-  private readonly fallback = new SimulatedSource();
-
-  public async fetchSectorTelemetry(zoneId: SectorId): Promise<SectorReading> {
-    try {
-      // Mock or fetch from Open-Meteo endpoint (lat/lon coordinates of urban region)
-      // If offline or network error, falls back to simulated
-      const fallbackReading = await this.fallback.fetchSectorTelemetry(zoneId);
-      return {
-        ...fallbackReading,
-        isSimulated: false,
-        sourceLabel: this.name,
-      };
-    } catch {
-      return this.fallback.fetchSectorTelemetry(zoneId);
-    }
-  }
-
-  public async fetchAllSectors(): Promise<Record<SectorId, SectorReading>> {
-    try {
-      const fallbackData = await this.fallback.fetchAllSectors();
-      const updated: Partial<Record<SectorId, SectorReading>> = {};
-      for (const [z, r] of Object.entries(fallbackData)) {
-        updated[z as SectorId] = {
-          ...r,
-          isSimulated: false,
-          sourceLabel: this.name,
-        };
-      }
-      return updated as Record<SectorId, SectorReading>;
-    } catch {
-      return this.fallback.fetchAllSectors();
-    }
-  }
-}
-
-/**
- * Telemetry Source Factory based on environment configuration.
+ * Client-safe default. Live sources are created server-side (server/telemetry/factory.ts) and the
+ * browser should call GET /api/ai/telemetry instead of choosing a source itself.
  */
 export function getActiveTelemetrySource(): TelemetrySource {
-  const envSource = typeof process !== 'undefined' ? process.env?.TELEMETRY_SOURCE : 'simulated';
-  if (envSource === 'openmeteo') {
-    return new OpenMeteoAirQualitySource();
-  }
   return new SimulatedSource();
 }

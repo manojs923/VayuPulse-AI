@@ -12,6 +12,7 @@ import { runRollingOriginBacktest } from '../../lib/mlEval';
 import { fuseSensorStream } from '../../lib/sensorFusion';
 import { URBAN_SECTORS, SectorId } from '../../lib/routing';
 import { MedicalNotice } from '../common/MedicalNotice';
+import { useI18n } from '../../lib/i18n/I18nContext';
 import {
   CloudFog,
   Thermometer,
@@ -24,6 +25,7 @@ import {
 } from 'lucide-react';
 
 export const TelemetryForecastTab: React.FC = () => {
+  const { t } = useI18n();
   const [selectedSector, setSelectedSector] = useState<SectorId>('CBD');
   const [windSlider, setWindSlider] = useState<number>(3.5);
   const [upperTempDelta, setUpperTempDelta] = useState<number>(3.5);
@@ -466,15 +468,15 @@ export const TelemetryForecastTab: React.FC = () => {
           <div>
             <h2 className="text-lg font-bold text-slate-100 flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-cyan-400" aria-hidden="true" />
-              24-Hour ML Smog & Inversion Forecaster
+              {t.telemetryTab.forecastTitle}
             </h2>
             <p className="text-xs text-slate-400 mt-0.5">
-              Zero-dependency Holt-Winters diurnal smoothing blended with Ridge atmospheric physics.
+              {t.telemetryTab.forecastSubtitle}
             </p>
           </div>
           <div className="p-2.5 rounded-xl bg-emerald-950/40 border border-emerald-800/50 max-w-md">
             <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 block font-mono">
-              Safe Outdoor Window
+              {t.telemetryTab.leastPollutedWindow}
             </span>
             <p className="text-xs text-emerald-200 mt-0.5">
               {mlForecast.safeOutdoorWindow.recommendation}
@@ -570,7 +572,7 @@ export const TelemetryForecastTab: React.FC = () => {
           <div className="space-y-4">
             <h4 className="text-sm font-semibold text-slate-200 flex items-center gap-2">
               <Sliders className="w-4 h-4 text-cyan-400" aria-hidden="true" />
-              Counterfactual "What-If" Meteorological Sliders
+              {t.telemetryTab.counterfactualTitle}
             </h4>
             <div className="space-y-3 text-xs font-mono">
               <div>

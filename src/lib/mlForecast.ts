@@ -279,7 +279,7 @@ export function generate24HourMLForecast(
       startTargetHour: startHourObj.targetHour,
       endTargetHour: endHourObj.targetHour,
       averageAQI: avgAqi,
-      recommendation: `Optimal outdoor ventilation & commuting window between ${String(startHourObj.targetHour).padStart(2, '0')}:00 and ${String(endHourObj.targetHour).padStart(2, '0')}:59 (Forecast AQI: ~${avgAqi}).`,
+      recommendation: `Least-polluted outdoor ventilation & commuting window between ${String(startHourObj.targetHour).padStart(2, '0')}:00 and ${String(endHourObj.targetHour).padStart(2, '0')}:59 (Forecast AQI: ~${avgAqi}).`,
     },
     uncertaintyNotice: 'Approximate empirical 90% intervals derived from historical residual quantiles.',
   };

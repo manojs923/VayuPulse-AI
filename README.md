@@ -5,7 +5,7 @@
 [![React 19](https://img.shields.io/badge/React-19.0-61dafb.svg)](https://react.dev/)
 [![Express 5](https://img.shields.io/badge/Express-5.0-000000.svg)](https://expressjs.com/)
 [![Tailwind CSS v4](https://img.shields.io/badge/Tailwind-v4.0-38bdf8.svg)](https://tailwindcss.com/)
-[![Tests](https://img.shields.io/badge/Tests-100%2F100%20Passing-emerald.svg)](https://vitest.dev/)
+[![Tests](https://img.shields.io/badge/Tests-135%2F135%20Passing-emerald.svg)](https://vitest.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 ---
@@ -134,22 +134,25 @@ Under strict design rules, **large language models never compute numbers, concen
 
 ---
 
-## 🧪 7. Test Suite Summary (100/100 Tests Passing)
+## 🧪 7. Test Suite Summary (135/135 Tests Passing)
 
 All tests execute in isolated, mocked environments without requiring live keys or external network connections:
 
 | Suite | File | Tests | Focus |
 | :--- | :--- | :---: | :--- |
-| **EPA Physics** | [`src/test/aqi.test.ts`](src/test/aqi.test.ts) | 15 | Breakpoints, >500.4 cap, inversion lapse rates, CADR decay, 4-ACH sizing |
+| **EPA Physics** | [`src/test/aqi.test.ts`](src/test/aqi.test.ts) | 23 | Breakpoints, >500.4 cap, inversion lapse rates, CADR decay, 4-ACH sizing |
 | **ML Engine** | [`src/test/ml.test.ts`](src/test/ml.test.ts) | 9 | Horizon shapes, residual bounds, non-negativity, backtest MAE/RMSE/MAPE |
-| **Sensor Fusion** | [`src/test/sensorFusion.test.ts`](src/test/sensorFusion.test.ts) | 5 | 1-D Kalman convergence, acute spike detection, stuck sensor freezes |
-| **Dijkstra Transit** | [`src/test/routing.test.ts`](src/test/routing.test.ts) | 8 | Lowest dose pathfinding, flat reduction to static, 2 dose regression tests |
+| **Sensor Fusion** | [`src/test/sensorFusion.test.ts`](src/test/sensorFusion.test.ts) | 6 | 1-D Kalman convergence, acute spike detection, stuck sensor freezes |
+| **Dijkstra Transit** | [`src/test/routing.test.ts`](src/test/routing.test.ts) | 10 | Lowest dose pathfinding, flat reduction to static, 2 dose regression tests |
+| **Telemetry Source** | [`src/test/telemetry.test.ts`](src/test/telemetry.test.ts) | 9 | Open-Meteo live CAMS adapter, city mean preservation, pressure level elevation, fallback |
+| **Clean-Air Copilot** | [`src/test/copilotRouter.test.ts`](src/test/copilotRouter.test.ts) | 14 | Multi-intent classification, clinical triage notice, live observation timestamps, CR box & transit comparisons |
+| **Multilingual i18n** | [`src/test/i18n.test.tsx`](src/test/i18n.test.tsx) | 7 | 8-language localization (Kannada, Hindi, English, Tamil, Telugu, Arabic, Urdu, Spanish), dynamic RTL, storage persistence |
 | **Hybrid RAG** | [`src/test/rag.test.ts`](src/test/rag.test.ts) | 7 | BM25 rank, vector cosine similarity, RRF fusion, offline degradation |
 | **Agent Orchestrator** | [`src/test/orchestrator.test.ts`](src/test/orchestrator.test.ts) | 8 | Tool allowlist, Planner-Critic loop, Zod schema validation, injection defenses |
-| **Gateway Security** | [`src/test/api.test.ts`](src/test/api.test.ts) | 9 | Helmet CSP, 15 KB body cap, rate limiter, SHA-256 LRU cache, midnight hour |
+| **Gateway Security** | [`src/test/api.test.ts`](src/test/api.test.ts) | 9 | Helmet CSP, 15 KB body cap, rate limiter, SHA-256 LRU cache, `/api/ai/telemetry` |
 | **UI Components** | [`src/test/rendering.test.tsx`](src/test/rendering.test.tsx) | 6 | Tab mounting, simulated banner, medical disclaimer, `.sr-only` twins |
 | **DOM & RTL** | [`src/test/dom.test.tsx`](src/test/dom.test.tsx) | 4 | Modal open/close, Copilot drawer, dynamic `dir="rtl"` Arabic/Urdu switching |
-| **Responsible AI** | [`src/test/aiEval.test.ts`](src/test/aiEval.test.ts) | 27 | Gemini 3.5 parameter compliance, infant mask contraindication, Sharp EXIF |
+| **Responsible AI** | [`src/test/aiEval.test.ts`](src/test/aiEval.test.ts) | 21 | Gemini 3.5 parameter compliance, infant mask contraindication, child respirator wording |
 | **Key Custody** | [`src/test/keyCustody.test.ts`](src/test/keyCustody.test.ts) | 2 | Scans `src/` and compiled bundle assets in `dist/assets/` for zero key leakage |
 
 ---
@@ -182,7 +185,7 @@ npm run typecheck
 # Oxlint inspection (0 warnings)
 npm run lint
 
-# Run all 100 Vitest tests
+# Run all 128 Vitest tests across 13 suites
 npm run test:run
 
 # Build production bundle
@@ -205,17 +208,21 @@ Deploy `server/server.ts` using Node.js or a container runtime:
 # Build the TypeScript frontend bundle
 npm run build
 
-# Start production server with tsx
-npx tsx server/server.ts
+# Start production server with static hosting enabled
+SERVE_STATIC=true npx tsx server/server.ts
 ```
 
 Set the following environment variables in your deployment host:
 ```env
 PORT=3001
 ALLOWED_ORIGINS=https://your-frontend-domain.com
+SERVE_STATIC=true
 AI_PRIMARY_PROVIDER=openai
 OPENAI_API_KEY=your_key
 GEMINI_API_KEY=your_key
+TELEMETRY_SOURCE=openmeteo
+TELEMETRY_LAT=28.6139
+TELEMETRY_LON=77.2090
 ```
 
 ---

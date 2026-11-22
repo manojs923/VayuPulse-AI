@@ -55,7 +55,10 @@ export const ModelCardModal: React.FC<ModelCardModalProps> = ({ isOpen, onClose 
               2. Data Sources & Transparency Labeling
             </h3>
             <p className="leading-relaxed">
-              By default, environmental telemetry is synthesized via a physics-based boundary-layer simulator. When live adapters (such as Open-Meteo Air Quality or OpenAQ) are enabled, telemetry reflects ambient API readings. All forecast evaluations and backtest statistics clearly state whether they were calculated on simulated benchmark data or historical sensor streams.
+              By default, environmental telemetry is synthesized via a physics-based boundary-layer simulator. When live telemetry is enabled (<code className="text-cyan-300">TELEMETRY_SOURCE=openmeteo</code>), ambient data is fetched from Open-Meteo and the Copernicus Atmosphere Monitoring Service (CAMS) under CC-BY 4.0 attribution. CAMS air quality is modeled, not a raw sensor; city-level PM2.5 is distributed proportionally across urban sectors preserving the city mean.
+            </p>
+            <p className="leading-relaxed text-[11px] text-slate-400">
+              When live feeds fail or are unconfigured, VayuPulse automatically falls back to deterministic simulation and explicitly flags the data as simulated with the fallback reason. Simulated data is never relabeled as live.
             </p>
           </section>
 

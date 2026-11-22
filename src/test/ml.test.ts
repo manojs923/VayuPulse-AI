@@ -81,7 +81,7 @@ describe('ML Forecaster Property Tests', () => {
     expect(win.startHourOffset).toBeGreaterThanOrEqual(1);
     expect(win.endHourOffset).toBeLessThanOrEqual(24);
     expect(win.averageAQI).toBeGreaterThan(0);
-    expect(win.recommendation).toContain('Optimal outdoor');
+    expect(win.recommendation).toContain('Least-polluted outdoor');
   });
 });
 

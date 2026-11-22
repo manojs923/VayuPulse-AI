@@ -3,11 +3,14 @@
  * @description Safe Agent Tool Execution Layer with strict allowlist and range validation.
  */
 
-import { URBAN_SECTORS, SectorId, TransitMode, dijkstraLowestExposure, dijkstraTimeDependent } from '../../src/lib/routing';
+import { SectorId, TransitMode, dijkstraLowestExposure, dijkstraTimeDependent } from '../../src/lib/routing';
 import { generate24HourMLForecast } from '../../src/lib/mlForecast';
-import { estimatePurificationTime, PURIFIER_PRESETS, calculatePM25SubIndex, evaluateInversionRisk } from '../../src/lib/aqiCompute';
+import { estimatePurificationTime, PURIFIER_PRESETS } from '../../src/lib/aqiCompute';
 import { retrieveContext } from '../rag/knowledgeBase';
 import { stripControlChars } from '../../src/lib/sanitize';
+import { createTelemetrySource } from '../telemetry/factory';
+
+const telemetrySource = createTelemetrySource();
 
 export interface ToolDefinition {
   name: string;
@@ -135,19 +138,22 @@ export async function executeAgentTool(
       if (!VALID_ZONES.has(zoneId)) {
         throw new Error(`Invalid zoneId: "${String(zoneId)}". Must be one of: CBD, IND, RES, PRK, TRN.`);
       }
-      const sector = URBAN_SECTORS[zoneId];
-      const aqiRes = calculatePM25SubIndex(sector.defaultPM25);
-      const invRes = evaluateInversionRisk(7.5, 11.0, 3.2);
+      const reading = await telemetrySource.fetchSectorTelemetry(zoneId);
 
       return {
-        zoneId: sector.id,
-        zoneName: sector.name,
-        pm25: sector.defaultPM25,
-        aqi: aqiRes.aqi,
-        category: aqiRes.category,
-        inversionRisk: invRes.severity,
-        inversionTrappingFactor: invRes.trappingMultiplier,
-        isSimulated: true,
+        zoneId: reading.zoneId,
+        zoneName: reading.name,
+        pm25: reading.pm25,
+        aqi: reading.aqi,
+        category: reading.category,
+        groundTempC: reading.groundTempC,
+        upperTempC: reading.upperTempC,
+        windSpeedKmH: reading.windSpeedKmH,
+        inversionRisk: reading.inversionSeverity,
+        isSimulated: reading.isSimulated,
+        sourceLabel: reading.sourceLabel,
+        asOf: reading.asOf,
+        fallbackReason: reading.fallbackReason,
       };
     }
 

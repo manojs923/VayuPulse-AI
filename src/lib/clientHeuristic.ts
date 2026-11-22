@@ -19,6 +19,23 @@ export function sanitizeClientInput(text: string): string {
     .slice(0, 1000);
 }
 
+const PERSONA_LABELS: Record<string, string> = {
+  ASTHMATIC_CHILD: 'Asthmatic Children (Ages 5–12)',
+  NEWBORN_INFANT: 'Newborn Infants (0–12 Months)',
+  ELDERLY_CARDIAC: 'Elderly Cardiac Patients',
+  OUTDOOR_ATHLETE: 'Outdoor Endurance Athletes',
+  SCHOOL_COMMUTER: 'Daily School Commuters',
+  NEIGHBORHOOD_LEAD: 'Community Resilience Leads',
+};
+
+const ZONE_LABELS: Record<string, string> = {
+  RES: 'Greenwood Residential (RES)',
+  CBD: 'Downtown Central Business District (CBD)',
+  IND: 'North Industrial Belt (IND)',
+  PRK: 'Riverside Eco-Park (PRK)',
+  TRN: 'Grand Transit Interchange (TRN)',
+};
+
 /**
  * Deterministic offline fallback routine generator.
  */
@@ -30,60 +47,57 @@ export function generateClientHeuristicPlan(req: PlanRequest): AgentPlanResponse
 
   const baseZone = req.zoneId ?? 'RES';
   const destZone = req.destinationZoneId ?? 'CBD';
-  const modeLabel =
-    req.transitMode === 'EV_HEPA'
-      ? 'EV / HEPA Cabin Taxi'
-      : req.transitMode === 'METRO'
-      ? 'Underground Metro'
-      : req.transitMode
-      ? req.transitMode.replace(/_/g, ' ')
-      : 'Underground Metro';
+  const baseZoneLabel = ZONE_LABELS[baseZone] ?? baseZone;
+  const destZoneLabel = ZONE_LABELS[destZone] ?? destZone;
+  const personaLabel = PERSONA_LABELS[req.persona] ?? req.persona.replace(/_/g, ' ');
 
   // Construct conservative hourly routine with strict pediatric/neonatal safety rules
   const routine: HourlyAction[] = [
     {
       hour: 7,
-      timeLabel: '07:00 - 09:00 (Dawn Peak / Inversion)',
+      timeLabel: '07:00 - 09:00 (Dawn Peak / Commute Inversion)',
       exposureRisk: 'SEVERE',
       activityRecommendation: isInfant
         ? 'Strict indoor nursery isolation with continuous HEPA air filtration (>4 ACH). Note: Masks are strictly contraindicated for infants under 2 years.'
         : isChild
-        ? 'Strict indoor shelter. Keep windows sealed. Avoid morning outdoor school commute; use pediatric-sized KF94 mask if transit is unavoidable.'
+        ? 'Strict indoor shelter. Keep windows sealed. Avoid morning outdoor school commute; well-fitting respirator only if the child can wear one (age ≥ 2, adult supervised); consult a doctor for asthma if transit is unavoidable.'
         : isCardiac
         ? 'Strict indoor shelter. Avoid early morning cold-air exertion. Maintain continuous HEPA air scrubbing.'
         : 'Avoid strenuous outdoor cardio. Use certified N95/FFP2 respirator if commuting. Keep indoor air scrubbed.',
-      ventilationStatus: 'ACTIVE_PURIFICATION',
+      ventilationStatus: 'SEALED',
       maskingRequired: isInfant ? false : true,
     },
     {
       hour: 10,
-      timeLabel: '10:00 - 12:00 (Late Morning)',
+      timeLabel: '10:00 - 12:00 (Late Morning Indoor Work/Study)',
       exposureRisk: 'HIGH',
       activityRecommendation: isInfant
         ? 'Maintain indoor filtered nursery. Suspend all outdoor stroller walks.'
-        : 'Indoor filtered learning/work. Maintain Corsi-Rosenthal / HEPA filtration (>4 ACH).',
+        : 'Indoor filtered learning/work with active mechanical purification. Maintain Corsi-Rosenthal / HEPA filtration (common guideline: 4–5+ ACH). Indoor masks not required in filtered rooms.',
       ventilationStatus: 'ACTIVE_PURIFICATION',
-      maskingRequired: isInfant ? false : isVulnerable,
+      maskingRequired: false,
     },
     {
       hour: 13,
-      timeLabel: '13:00 - 15:00 (Convective Solar Breakup Window)',
+      timeLabel: '13:00 - 15:00 (Least-Polluted Window / Solar Breakup)',
       exposureRisk: 'MODERATE',
       activityRecommendation: isInfant
         ? 'Solar convective breakup dissipates ground inversion. Brief indoor cross-ventilation permitted while monitoring local AQI.'
         : isVulnerable
-        ? 'Safest outdoor window of the day. Mild outdoor walking permitted if local AQI < 100.'
-        : 'Optimal window for natural cross-ventilation and outdoor transit before evening inversion reforms.',
+        ? 'Least-polluted window of the day. Mild outdoor walking permitted if local AQI < 100.'
+        : 'Least-polluted window for natural cross-ventilation and outdoor transit before evening inversion reforms.',
       ventilationStatus: 'FILTERED_VENTILATION',
       maskingRequired: false,
     },
     {
       hour: 17,
-      timeLabel: '17:00 - 20:00 (Evening Traffic & Ground Inversion)',
+      timeLabel: '17:00 - 20:00 (Evening Commute & Inversion Reformation)',
       exposureRisk: 'SEVERE',
       activityRecommendation: isInfant
-        ? 'Evening thermal lid traps rush-hour exhaust. Keep nursery windows sealed with HEPA filtration active.'
-        : 'Evening smog cap sets in. Commute strictly via enclosed transit (EV/HEPA or Metro). Close all windows.',
+        ? 'Evening thermal lid traps rush-hour exhaust. Keep nursery windows sealed with HEPA filtration active. Masks contraindicated.'
+        : isChild
+        ? 'Evening smog cap sets in. Commute strictly via enclosed transit (EV/HEPA or Metro). Well-fitting respirator only if the child can wear one (age ≥ 2, adult supervised); consult a doctor for asthma.'
+        : 'Evening smog cap sets in. Commute strictly via enclosed transit (EV/HEPA or Metro). Wear N95/FFP2 respirator if transit is required. Close all windows.',
       ventilationStatus: 'SEALED',
       maskingRequired: isInfant ? false : true,
     },
@@ -96,7 +110,7 @@ export function generateClientHeuristicPlan(req: PlanRequest): AgentPlanResponse
     : ['[WHO-PM25-24H]', '[EPA-AQI-THRESH]', '[N95-PHYSICS]', '[VENT-INVERSION]'];
 
   const physiologicalImpact = isInfant
-    ? 'Immature neonatal lung parenchyma and rapid respiratory rate create severe vulnerability to ultrafine particle loading. Air cleaners must maintain indoor PM2.5 < 10 µg/m³. Respirators contraindicated.'
+    ? 'Immature neonatal lung parenchyma and rapid respiratory rate create severe vulnerability to ultrafine particle loading. Air cleaners must maintain indoor PM2.5 < 10 µg/m³. Respirators contraindicated (<2y).'
     : isChild
     ? 'High minute ventilation per kg body mass causes disproportionate alveolar particulate deposition. Airway hyper-reactivity risk during cold inversions.'
     : isCardiac
@@ -104,11 +118,11 @@ export function generateClientHeuristicPlan(req: PlanRequest): AgentPlanResponse
     : 'Elevated oxidative burden on respiratory epithelium. Commuter exposure can be mitigated through sealed transit corridors and timed ventilation.';
 
   return {
-    riskSummary: `Winter boundary-layer inversion active over ${baseZone}. Stagnant cool ground layer trapping particulates. Sensitive groups (${req.persona.replace(/_/g, ' ')}) must restrict morning/night exposure.`,
+    riskSummary: `Winter boundary-layer inversion active over ${baseZoneLabel}. Stagnant cool ground layer trapping particulates. Sensitive groups (${personaLabel}) must restrict morning and evening outdoor exposure.`,
     hourlyRoutine: routine,
     physiologicalImpact,
-    cleanRouteAdvice: `Transit between ${baseZone} and ${destZone} is best undertaken via ${modeLabel} during the convective breakup window (13:00–15:00). For maximum exposure reduction, an EV / HEPA Cabin Taxi provides 85% particulate filtration.`,
-    iaqActionPlan: 'Operate Corsi-Rosenthal box (CADR 350 m³/h) continuously in bedrooms to achieve >4 ACH. Seal windows during morning inversion (05:00–10:00).',
+    cleanRouteAdvice: `Transit between ${baseZoneLabel} and ${destZoneLabel}: Lowest inhaled dose is achieved with EV / HEPA Cabin Taxi (85% filtration) or Underground Metro (75% filtration). Reschedule travel to the least-polluted window (13:00–15:00) during convective solar breakup.`,
+    iaqActionPlan: 'Operate Corsi-Rosenthal box (CADR 350 m³/h) continuously in bedrooms to achieve common guideline: 4–5+ ACH (5 ACH recommended). Seal windows during morning inversion (05:00–10:00).',
     citations,
     confidence: 0.78,
     confidenceRationale: 'Conservative heuristic estimate based on physical inversion proxies; live sensor model uncalibrated.',

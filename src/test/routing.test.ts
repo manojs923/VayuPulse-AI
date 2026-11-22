@@ -148,4 +148,30 @@ describe('Time-Dependent Transit Departure Optimization', () => {
 
     expect(timeDep.doseReductionPercent).toBe(expectedPercent);
   });
+
+  it('handles worsening smog forecast where leaving now is optimal (bestOffset === 0)', () => {
+    // Air quality worsens throughout the day: 40 -> 60 -> 100 µg/m³
+    const mockWorseningForecast: ForecastResult = {
+      ...mockFlatForecast,
+      hours: Array.from({ length: 24 }, (_, i) => ({
+        ...mockFlatForecast.hours[0]!,
+        hourOffset: i + 1,
+        targetHour: (8 + i + 1) % 24,
+        predictedPM25: 40.0 + i * 5.0,
+      })),
+    };
+
+    const timeDep = dijkstraTimeDependent('RES', 'CBD', 'METRO', mockWorseningForecast, 8);
+    expect(timeDep.bestDepartureHourOffset).toBe(0);
+    expect(timeDep.doseReductionPercent).toBe(0);
+    expect(timeDep.advice).toContain('Leaving now');
+    expect(timeDep.hourlyDoses.length).toBe(12);
+  });
+
+  it('handles unreachable destination for time-dependent departure gracefully', () => {
+    const timeDep = dijkstraTimeDependent('RES', 'NONEXISTENT' as SectorId, 'METRO', mockFlatForecast, 8);
+    expect(timeDep.bestDoseMicrograms).toBe(Infinity);
+    expect(timeDep.leaveNowDoseMicrograms).toBe(Infinity);
+    expect(timeDep.advice).toContain('unreachable');
+  });
 });

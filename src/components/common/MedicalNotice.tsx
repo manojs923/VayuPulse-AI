@@ -1,11 +1,14 @@
 import React from 'react';
 import { AlertCircle } from 'lucide-react';
+import { useI18n } from '../../lib/i18n/I18nContext';
 
 interface MedicalNoticeProps {
   className?: string;
 }
 
 export const MedicalNotice: React.FC<MedicalNoticeProps> = ({ className = '' }) => {
+  const { t } = useI18n();
+
   return (
     <div
       role="note"
@@ -14,10 +17,9 @@ export const MedicalNotice: React.FC<MedicalNoticeProps> = ({ className = '' }) 
     >
       <AlertCircle className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" aria-hidden="true" />
       <div>
-        <strong className="font-semibold text-cyan-300">Informational only, not medical advice.</strong>
+        <strong className="font-semibold text-cyan-300">{t.medicalNotice.title}</strong>
         <p className="mt-0.5 text-cyan-200/70 text-[11px] leading-relaxed">
-          VayuPulse AI provides deterministic environmental physics and protocol-grounded decision support.
-          Always follow prescribed medical advice from your physician and emergency public health directives.
+          {t.medicalNotice.description}
         </p>
       </div>
     </div>

@@ -15,15 +15,20 @@ import express, { Request, Response, NextFunction } from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import crypto from 'crypto';
+import path from 'path';
+import fs from 'fs';
 import dotenv from 'dotenv';
 import { defaultOrchestrator, PlanRequest } from './ai/orchestrator';
 import { generate24HourMLForecast } from '../src/lib/mlForecast';
 import { SectorId } from '../src/lib/routing';
 import { estimateSkylineHaze } from './ai/visionHaze';
+import { createTelemetrySource } from './telemetry/factory';
+import { DEFAULT_SIMULATED_WEATHER } from '../src/lib/telemetrySource';
 
 dotenv.config();
 
 export const app = express();
+export const telemetrySource = createTelemetrySource();
 
 // 1. Strict Helmet Security Headers & CSP
 app.use(
@@ -211,9 +216,9 @@ app.post('/api/ai/forecast', ipRateLimiter(30, 60000), (req: Request, res: Respo
       currentHour,
       {
         hourOfDay: currentHour,
-        groundTempC: 8.0,
-        upperTempC: 11.5,
-        windSpeedKmH: 3.5,
+        groundTempC: DEFAULT_SIMULATED_WEATHER.groundTempC,
+        upperTempC: DEFAULT_SIMULATED_WEATHER.upperTempC,
+        windSpeedKmH: DEFAULT_SIMULATED_WEATHER.windSpeedKmH,
         relativeHumidity: 75,
       }
     );
@@ -296,7 +301,29 @@ app.post(
   }
 );
 
-// 9. CWE-209-Safe Global Error Handler
+// 9. /api/ai/telemetry endpoint (Phase 4 / Data-honesty live adapter)
+app.get('/api/ai/telemetry', async (_req: Request, res: Response, next: NextFunction) => {
+  try {
+    const sectors = await telemetrySource.fetchAllSectors();
+    res.json({ source: telemetrySource.name, sectors });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// 10. Optional Production Static Serving (SERVE_STATIC=true)
+const distPath = path.resolve(process.cwd(), 'dist');
+if (process.env.SERVE_STATIC === 'true' || (process.env.NODE_ENV === 'production' && fs.existsSync(distPath))) {
+  app.use(express.static(distPath));
+  app.get('*', (req: Request, res: Response, next: NextFunction) => {
+    if (req.path.startsWith('/api')) {
+      return next();
+    }
+    res.sendFile(path.join(distPath, 'index.html'));
+  });
+}
+
+// 11. CWE-209-Safe Global Error Handler
 // Never leaks stack traces or system internals to callers
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
